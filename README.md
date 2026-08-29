@@ -46,6 +46,27 @@ Servidor corriendo en http://192.168.100.6:3000
 
 Desde cualquier dispositivo en la misma WiFi, abre esa URL en el navegador.
 
+## Verificar si el servidor está activo
+
+Desde Termux (en otra sesión, sin detener el servidor):
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000
+```
+
+Si responde `200`, el servidor está corriendo. Si da error de conexión, está apagado.
+
+También puedes revisar si el proceso sigue vivo:
+
+```bash
+pgrep -fl "node server.js"
+```
+
+Si no imprime nada, el servidor no está corriendo.
+
+Desde otro dispositivo en la misma WiFi (PC, celular), simplemente abre
+`http://192.168.100.6:3000` en el navegador: si carga la página, está activo.
+
 ## Dejarlo corriendo en segundo plano (Termux)
 
 ```bash
