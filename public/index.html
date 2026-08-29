@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Envío Fácil</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    margin: 0;
+    padding: 16px;
+    background: #f2f2f2;
+    color: #222;
+  }
+  .card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  h1 {
+    font-size: 20px;
+    margin: 0 0 16px 0;
+    text-align: center;
+  }
+  h2 {
+    font-size: 15px;
+    margin: 0 0 10px 0;
+    color: #444;
+  }
+  .upload-row {
+    display: block;
+  }
+  input[type=file] {
+    width: 100%;
+    margin-bottom: 10px;
+    font-size: 14px;
+  }
+  button, .btn {
+    font-size: 14px;
+    padding: 10px 14px;
+    border: 1px solid #999;
+    border-radius: 4px;
+    background: #eee;
+    cursor: pointer;
+  }
+  button.primary {
+    background: #2b7cd3;
+    color: #fff;
+    border-color: #2b7cd3;
+    width: 100%;
+  }
+  button.small {
+    padding: 6px 10px;
+    font-size: 13px;
+    background: #fff;
+    border-color: #d9534f;
+    color: #d9534f;
+  }
+  #status {
+    color: #666;
+    font-size: 13px;
+    margin-top: 8px;
+    min-height: 16px;
+  }
+  .file-item {
+    display: block;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+  }
+  .file-item:last-child { border-bottom: none; }
+  .file-name {
+    display: block;
+    font-size: 14px;
+    color: #2b7cd3;
+    text-decoration: none;
+    word-break: break-all;
+    margin-bottom: 4px;
+  }
+  .file-meta {
+    display: block;
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 6px;
+  }
+  .empty {
+    color: #999;
+    font-size: 14px;
+    text-align: center;
+    padding: 12px 0;
+  }
+  .toolbar {
+    text-align: right;
+    margin-bottom: 10px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Envío Fácil</h1>
+
+<div class="card">
+  <h2>Subir archivo</h2>
+  <form id="uploadForm" class="upload-row">
+    <input type="file" id="fileInput" name="file">
+    <button type="submit" class="primary">Subir</button>
+  </form>
+  <div id="status"></div>
+</div>
+
+<div class="card">
+  <h2>Archivos disponibles</h2>
+  <div class="toolbar">
+    <button onclick="cargarLista()">Actualizar</button>
+  </div>
+  <div id="lista"></div>
+</div>
+
+<script>
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  return Math.round(bytes / 1024) + ' KB';
+}
+
+function cargarLista() {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', '/files', true);
+  xhr.onreadystatechange = function () {
+    if (xhr.readyState === 4 && xhr.status === 200) {
+      var files = JSON.parse(xhr.responseText);
+      var cont = document.getElementById('lista');
+      cont.innerHTML = '';
+      if (files.length === 0) {
+        var empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.innerText = 'No hay archivos todavía';
+        cont.appendChild(empty);
+        return;
+      }
+      for (var i = 0; i < files.length; i++) {
+        cont.appendChild(crearItem(files[i]));
+      }
+    }
+  };
+  xhr.send();
+}
+
+function crearItem(file) {
+  var item = document.createElement('div');
+  item.className = 'file-item';
+
+  var a = document.createElement('a');
+  a.href = '/uploads/' + encodeURIComponent(file.name);
+  a.className = 'file-name';
+  a.innerText = file.name;
+  item.appendChild(a);
+
+  var meta = document.createElement('span');
+  meta.className = 'file-meta';
+  meta.innerText = formatSize(file.size);
+  item.appendChild(meta);
+
+  var delBtn = document.createElement('button');
+  delBtn.className = 'small';
+  delBtn.innerText = 'Eliminar';
+  delBtn.onclick = (function (name) {
+    return function () { borrarArchivo(name); };
+  })(file.name);
+  item.appendChild(delBtn);
+
+  return item;
+}
+
+function borrarArchivo(name) {
+  if (!confirm('¿Borrar "' + name + '"?')) return;
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', '/delete', true);
+  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  xhr.onreadystatechange = function () {
+    if (xhr.readyState === 4) {
+      if (xhr.status === 200) {
+        cargarLista();
+      } else {
+        alert('No se pudo borrar el archivo');
+      }
+    }
+  };
+  xhr.send('name=' + encodeURIComponent(name));
+}
+
+document.getElementById('uploadForm').onsubmit = function (e) {
+  e.preventDefault();
+  var input = document.getElementById('fileInput');
+  if (!input.files.length) return;
+  var formData = new FormData();
+  formData.append('file', input.files[0]);
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', '/upload', true);
+  document.getElementById('status').innerText = 'Subiendo...';
+  xhr.onreadystatechange = function () {
+    if (xhr.readyState === 4) {
+      if (xhr.status === 200) {
+        document.getElementById('status').innerText = 'Subida completa';
+        input.value = '';
+        cargarLista();
+      } else {
+        document.getElementById('status').innerText = 'Error al subir';
+      }
+    }
+  };
+  xhr.send(formData);
+};
+
+cargarLista();
+setInterval(cargarLista, 8000);
+</script>
+</body>
+</html>
